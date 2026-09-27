@@ -1,0 +1,6 @@
+{
+  "name": "Studee",
+  "description": "Minimalist study timer with session heatmap tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
