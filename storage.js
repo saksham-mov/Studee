@@ -19,6 +19,7 @@ const DEFAULT_SETTINGS = {
   sound: true,
   theme: 'dark', // 'dark' | 'light'
   heatmapTheme: 'monochrome', // monochrome starry palette
+  batVisible: true, // Animated bat companion on timer page
 };
 
 /**

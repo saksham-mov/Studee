@@ -1,0 +1,1360 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Studee — Analytics</title>
+    <meta name="description" content="Study session analytics, 3D activity visualizations, and session history." />
+    <link rel="icon" type="image/jpeg" href="/src/assets/images/app_icon_books_1790620033110.jpg" />
+    <link rel="apple-touch-icon" href="/src/assets/images/app_icon_books_1790620033110.jpg" />
+
+    <!-- Google Fonts: IBM Plex Mono & Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@200;400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <style>
+      :root {
+        --bg: #121214;
+        --text: #f4f4f6;
+        --text-muted: rgba(255, 255, 255, 0.5);
+        --text-dim: rgba(255, 255, 255, 0.3);
+        --glass-bg: rgba(255, 255, 255, 0.04);
+        --glass-border: rgba(255, 255, 255, 0.08);
+        --glass-border-hover: rgba(255, 255, 255, 0.16);
+        --glass-pill-bg: rgba(255, 255, 255, 0.08);
+        --glass-pill-border: rgba(255, 255, 255, 0.15);
+        --accent-3d: #a1b9ed;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        min-height: 100vh;
+        background-color: var(--bg);
+        /* Dark grid background */
+        background-image: 
+          linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+        background-size: 32px 32px;
+        background-position: -1px -1px;
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Plus Jakarta Sans", system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      /* Sticky Top Bar */
+      .analytics-navbar {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 32px;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        background: transparent;
+      }
+
+      /* Back Button Pill */
+      .btn-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--glass-pill-bg);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-pill-border);
+        border-radius: 999px;
+        padding: 6px 14px;
+        color: rgba(255, 255, 255, 0.85);
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 11px;
+        font-weight: 500;
+        text-decoration: none;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 4px 16px rgba(0, 0, 0, 0.3);
+        transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+      }
+
+      .btn-back:hover {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.25);
+        transform: translateX(-2px);
+      }
+
+      .nav-title {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 13px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.6);
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      /* Main Content Container */
+      main {
+        width: 100%;
+        max-width: 1040px;
+        padding: 10px 24px 60px;
+        display: flex;
+        flex-direction: column;
+        gap: 36px;
+        flex: 1;
+      }
+
+      /* Section 1: Stat Cards */
+      .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        width: 100%;
+      }
+
+      .stat-card {
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        padding: 24px;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 8px 32px rgba(0, 0, 0, 0.25);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: border-color 0.2s ease, transform 0.2s ease;
+      }
+
+      .stat-card:hover {
+        border-color: var(--glass-border-hover);
+        transform: translateY(-2px);
+      }
+
+      .stat-num {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 36px;
+        font-weight: 200;
+        line-height: 1.1;
+        color: #ffffff;
+        letter-spacing: -0.02em;
+        margin-bottom: 8px;
+        word-break: break-word;
+      }
+
+      .stat-label {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 11px;
+        color: var(--text-muted);
+        letter-spacing: 0.03em;
+      }
+
+      /* Section 2: 3D Visualizations */
+      .viz-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        width: 100%;
+      }
+
+      .viz-panel {
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        padding: 24px;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 8px 32px rgba(0, 0, 0, 0.25);
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .viz-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      }
+
+      .viz-title {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 12px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.7);
+        letter-spacing: 0.04em;
+      }
+
+      .viz-subtitle {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 11px;
+        color: var(--text-dim);
+      }
+
+      .canvas-box {
+        position: relative;
+        width: 100%;
+        height: 280px;
+        border-radius: 12px;
+        overflow: hidden;
+        cursor: grab;
+      }
+
+      .canvas-box:active {
+        cursor: grabbing;
+      }
+
+      .canvas-box canvas {
+        width: 100% !important;
+        height: 100% !important;
+        display: block;
+      }
+
+      /* Tooltip for 3D Bar Hover */
+      .bar-tooltip {
+        position: absolute;
+        pointer-events: none;
+        opacity: 0;
+        background: rgba(20, 20, 24, 0.9);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        padding: 6px 10px;
+        border-radius: 8px;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 11px;
+        color: #ffffff;
+        white-space: nowrap;
+        transition: opacity 0.15s ease, transform 0.15s ease;
+        z-index: 50;
+        transform: translate(-50%, -120%);
+      }
+
+      /* Legend for Activity Rings */
+      .ring-legend {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+      }
+
+      .legend-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 11px;
+      }
+
+      .legend-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-muted);
+      }
+
+      .legend-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+
+      .legend-value {
+        color: rgba(255, 255, 255, 0.85);
+        font-weight: 500;
+      }
+
+      /* Section 3: Session Log Table */
+      .table-panel {
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        padding: 24px;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 8px 32px rgba(0, 0, 0, 0.25);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        scroll-margin-top: 80px;
+      }
+
+      .table-header-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .table-title-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .table-title {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 13px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.85);
+        letter-spacing: 0.04em;
+      }
+
+      .table-badge {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 11px;
+        color: var(--text-dim);
+        background: rgba(255, 255, 255, 0.05);
+        padding: 2px 8px;
+        border-radius: 999px;
+      }
+
+      .table-scroll {
+        width: 100%;
+        overflow-x: auto;
+      }
+
+      table.session-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+      }
+
+      .session-table th {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 11px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.4);
+        padding: 12px 14px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        cursor: pointer;
+        user-select: none;
+        white-space: nowrap;
+        transition: color 0.15s ease;
+      }
+
+      .session-table th:hover {
+        color: #ffffff;
+      }
+
+      .session-table th.no-sort {
+        cursor: default;
+      }
+
+      .session-table th.no-sort:hover {
+        color: rgba(255, 255, 255, 0.4);
+      }
+
+      .session-table td {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 13px;
+        font-weight: 400;
+        color: rgba(255, 255, 255, 0.85);
+        padding: 14px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        white-space: nowrap;
+      }
+
+      .session-table tbody tr {
+        transition: background 0.15s ease;
+      }
+
+      .session-table tbody tr:nth-child(even) {
+        background: rgba(255, 255, 255, 0.02);
+      }
+
+      .session-table tbody tr:hover {
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .session-table tbody tr.row-confirming {
+        background: rgba(220, 38, 38, 0.12) !important;
+        border: 1px solid rgba(220, 38, 38, 0.3);
+      }
+
+      .sort-arrow {
+        display: inline-block;
+        margin-left: 4px;
+        font-size: 10px;
+        color: #ffffff;
+      }
+
+      /* Delete Button in Row */
+      .btn-delete-row {
+        opacity: 0;
+        background: transparent;
+        border: none;
+        color: rgba(255, 255, 255, 0.3);
+        cursor: pointer;
+        padding: 4px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        transition: opacity 0.15s ease, color 0.15s ease;
+      }
+
+      .session-table tbody tr:hover .btn-delete-row {
+        opacity: 1;
+      }
+
+      .btn-delete-row:hover {
+        color: #ff6b6b;
+      }
+
+      /* Inline Confirm Delete */
+      .confirm-inline-cell {
+        color: #fca5a5 !important;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 12px;
+        padding: 14px;
+      }
+
+      .confirm-inline-box {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+      }
+
+      .confirm-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .btn-inline-yes {
+        background: #dc2626;
+        color: #ffffff;
+        border: none;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 11px;
+        cursor: pointer;
+        transition: background 0.15s ease;
+      }
+
+      .btn-inline-yes:hover {
+        background: #ef4444;
+      }
+
+      .btn-inline-no {
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+        border: none;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 11px;
+        cursor: pointer;
+        transition: background 0.15s ease;
+      }
+
+      .btn-inline-no:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      /* Table Pagination */
+      .table-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 4px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+      }
+
+      .pagination-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-left: auto;
+      }
+
+      .page-label {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.6);
+        letter-spacing: 0.05em;
+      }
+
+      .btn-page-pill {
+        background: var(--glass-pill-bg);
+        border: 1px solid var(--glass-pill-border);
+        border-radius: 999px;
+        color: rgba(255, 255, 255, 0.8);
+        padding: 4px 12px;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 11px;
+        cursor: pointer;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+        transition: color 0.15s ease, background 0.15s ease;
+      }
+
+      .btn-page-pill:hover:not(:disabled) {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.14);
+      }
+
+      .btn-page-pill:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+      }
+
+      .empty-table-state {
+        text-align: center;
+        padding: 48px 16px;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.3);
+      }
+
+      /* Footer */
+      footer {
+        width: 100%;
+        text-align: center;
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: -0.01em;
+        color: rgba(255, 255, 255, 0.4);
+        padding: 24px 16px 36px;
+        user-select: none;
+      }
+
+      /* Responsive Breakpoints */
+      @media (max-width: 860px) {
+        .stat-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .viz-row {
+          grid-template-columns: 1fr;
+        }
+        .analytics-navbar {
+          padding: 16px 20px;
+        }
+        main {
+          padding: 10px 16px 40px;
+          gap: 24px;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .stat-num {
+          font-size: 28px;
+        }
+        .stat-card {
+          padding: 18px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Sticky Glass Top Bar -->
+    <header class="analytics-navbar">
+      <a href="/" class="btn-back" title="Return to Timer">
+        <span>&larr;</span>
+        <span>Back</span>
+      </a>
+      <div class="nav-title">Studee Analytics</div>
+      <div style="width: 60px;"></div> <!-- visual spacer balance -->
+    </header>
+
+    <main>
+      <!-- Section 1 — Stat Cards -->
+      <section class="stat-grid">
+        <!-- Card 1: Today's study time -->
+        <div class="stat-card">
+          <div id="stat-today" class="stat-num">0m</div>
+          <div class="stat-label">Today's study time</div>
+        </div>
+
+        <!-- Card 2: This week -->
+        <div class="stat-card">
+          <div id="stat-week" class="stat-num">0m</div>
+          <div class="stat-label">This week</div>
+        </div>
+
+        <!-- Card 3: Current streak -->
+        <div class="stat-card">
+          <div id="stat-streak" class="stat-num">0</div>
+          <div class="stat-label">Current streak</div>
+        </div>
+
+        <!-- Card 4: Best day ever -->
+        <div class="stat-card">
+          <div id="stat-best" class="stat-num">0m</div>
+          <div class="stat-label">Best day ever</div>
+        </div>
+      </section>
+
+      <!-- Section 2 — 3D Visualizations -->
+      <section class="viz-row">
+        <!-- Left: 3D Bar Chart -->
+        <div class="viz-panel">
+          <div class="viz-header">
+            <div class="viz-title">7-Day Study Volume (3D)</div>
+            <div id="bar-chart-total" class="viz-subtitle">0m total</div>
+          </div>
+          <div id="bar-canvas-container" class="canvas-box">
+            <div id="bar-tooltip" class="bar-tooltip"></div>
+          </div>
+        </div>
+
+        <!-- Right: 3D Activity Rings -->
+        <div class="viz-panel">
+          <div class="viz-header">
+            <div class="viz-title">Activity Rings (3D)</div>
+            <div class="viz-subtitle">Targets &amp; Consistency</div>
+          </div>
+          <div id="rings-canvas-container" class="canvas-box"></div>
+          <div class="ring-legend">
+            <div class="legend-row">
+              <div class="legend-left">
+                <span class="legend-dot" style="background: rgba(161,185,237,0.4); box-shadow: 0 0 6px rgba(161,185,237,0.3);"></span>
+                <span>Month Consistency (30d goal)</span>
+              </div>
+              <span id="legend-val-month" class="legend-value">0 / 30d</span>
+            </div>
+            <div class="legend-row">
+              <div class="legend-left">
+                <span class="legend-dot" style="background: rgba(161,185,237,0.7); box-shadow: 0 0 6px rgba(161,185,237,0.5);"></span>
+                <span>Weekly Target (10h goal)</span>
+              </div>
+              <span id="legend-val-week" class="legend-value">0h / 10h</span>
+            </div>
+            <div class="legend-row">
+              <div class="legend-left">
+                <span class="legend-dot" style="background: #a1b9ed; box-shadow: 0 0 8px rgba(161,185,237,0.8);"></span>
+                <span>Daily Target (2h goal)</span>
+              </div>
+              <span id="legend-val-day" class="legend-value">0h / 2h</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 3 — Session Log Table -->
+      <section id="session-log-table" class="table-panel">
+        <div class="table-header-bar">
+          <div class="table-title-group">
+            <span class="table-title">Session Log</span>
+            <span id="table-count-badge" class="table-badge">0 sessions</span>
+          </div>
+        </div>
+
+        <div class="table-scroll">
+          <table class="session-table">
+            <thead>
+              <tr>
+                <th data-sort="date">Date <span id="sort-arrow-date" class="sort-arrow">↓</span></th>
+                <th data-sort="duration">Duration <span id="sort-arrow-duration" class="sort-arrow"></span></th>
+                <th data-sort="mode">Mode <span id="sort-arrow-mode" class="sort-arrow"></span></th>
+                <th data-sort="subject">Subject <span id="sort-arrow-subject" class="sort-arrow"></span></th>
+                <th class="no-sort">Notes</th>
+                <th class="no-sort" style="width: 44px; text-align: right;">Delete</th>
+              </tr>
+            </thead>
+            <tbody id="session-table-body">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="table-footer">
+          <div class="pagination-controls">
+            <button id="btn-prev-page" class="btn-page-pill" disabled>&larr; Prev</button>
+            <span id="pagination-label" class="page-label">1 / 1</span>
+            <button id="btn-next-page" class="btn-page-pill" disabled>Next &rarr;</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      Made by Saksham
+    </footer>
+
+    <!-- Analytics & 3D Script -->
+    <script type="module">
+      import { getSessions, deleteSession } from './storage.js';
+
+      // ==========================================
+      // STATE & COMPUTATIONS
+      // ==========================================
+      let sessions = [];
+      let sortColumn = 'date';
+      let sortDirection = 'desc'; // 'asc' | 'desc'
+      let currentPage = 1;
+      const rowsPerPage = 10;
+      let confirmingDeleteId = null;
+
+      function loadFreshData() {
+        sessions = getSessions();
+      }
+
+      function formatDuration(seconds) {
+        const totalMinutes = Math.round(seconds / 60);
+        const hrs = Math.floor(totalMinutes / 60);
+        const mins = totalMinutes % 60;
+        if (hrs > 0) {
+          return `${hrs}h ${mins}m`;
+        }
+        return `${mins}m`;
+      }
+
+      function getLocalDateStr(d) {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+
+      // ==========================================
+      // 1. STAT CARDS CALCULATIONS
+      // ==========================================
+      function computeStats() {
+        const now = new Date();
+        const todayStr = getLocalDateStr(now);
+
+        // Monday of current week
+        const dayOfWeek = (now.getDay() + 6) % 7; // 0 = Mon, 6 = Sun
+        const monday = new Date(now);
+        monday.setDate(now.getDate() - dayOfWeek);
+        monday.setHours(0, 0, 0, 0);
+
+        let todaySecs = 0;
+        let weekSecs = 0;
+        const dayTotals = {}; // dateStr -> seconds
+
+        sessions.forEach((s) => {
+          const d = new Date(s.endedAt || s.startedAt);
+          const dateStr = getLocalDateStr(d);
+          const duration = Number(s.duration) || 0;
+
+          // Today
+          if (dateStr === todayStr) {
+            todaySecs += duration;
+          }
+
+          // Week
+          if (d >= monday) {
+            weekSecs += duration;
+          }
+
+          // Day grouping for streak & best day
+          dayTotals[dateStr] = (dayTotals[dateStr] || 0) + duration;
+        });
+
+        // Current Streak
+        let streak = 0;
+        let checkDate = new Date(now);
+        // If studied today, count from today. If not yet today, check yesterday
+        if (!dayTotals[todayStr]) {
+          checkDate.setDate(checkDate.getDate() - 1);
+        }
+
+        while (true) {
+          const ds = getLocalDateStr(checkDate);
+          if (dayTotals[ds] && dayTotals[ds] > 0) {
+            streak++;
+            checkDate.setDate(checkDate.getDate() - 1);
+          } else {
+            break;
+          }
+        }
+
+        // Best Day Ever
+        let maxSecs = 0;
+        Object.values(dayTotals).forEach((secs) => {
+          if (secs > maxSecs) maxSecs = secs;
+        });
+
+        // Update DOM
+        document.getElementById('stat-today').textContent = formatDuration(todaySecs);
+        document.getElementById('stat-week').textContent = formatDuration(weekSecs);
+        document.getElementById('stat-streak').textContent = streak;
+        document.getElementById('stat-best').textContent = formatDuration(maxSecs);
+
+        return { todaySecs, weekSecs, dayTotals };
+      }
+
+      // ==========================================
+      // 2. 3D BAR CHART (THREE.JS)
+      // ==========================================
+      let barRenderer, barScene, barCamera, barAnimationId;
+      const barMeshes = [];
+      let isBarHovered = false;
+      let hoveredBarMesh = null;
+      let barGroup;
+
+      function init3DBarChart(dayTotals) {
+        const container = document.getElementById('bar-canvas-container');
+        const tooltip = document.getElementById('bar-tooltip');
+        container.innerHTML = '';
+        container.appendChild(tooltip);
+
+        const width = container.clientWidth || 400;
+        const height = container.clientHeight || 280;
+
+        barScene = new THREE.Scene();
+
+        barCamera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
+        barCamera.position.set(0, 3.8, 7.5);
+        barCamera.lookAt(0, 0.8, 0);
+
+        barRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        barRenderer.setSize(width, height);
+        barRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        container.appendChild(barRenderer.domElement);
+
+        // Lighting
+        const ambLight = new THREE.AmbientLight(0xa1b9ed, 0.45);
+        barScene.add(ambLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        dirLight.position.set(6, 12, 8);
+        barScene.add(dirLight);
+
+        const backLight = new THREE.DirectionalLight(0xa1b9ed, 0.4);
+        backLight.position.set(-6, -2, -6);
+        barScene.add(backLight);
+
+        barGroup = new THREE.Group();
+        barScene.add(barGroup);
+
+        // Floor plane with subtle grid texture
+        const floorGeo = new THREE.PlaneGeometry(6.6, 3.2);
+        const floorMat = new THREE.MeshStandardMaterial({
+          color: 0x181822,
+          roughness: 0.8,
+          metalness: 0.1,
+          transparent: true,
+          opacity: 0.5,
+        });
+        const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+        floorMesh.rotation.x = -Math.PI / 2;
+        floorMesh.position.y = 0;
+        barGroup.add(floorMesh);
+
+        // Subtle grid lines
+        const gridHelper = new THREE.GridHelper(6.6, 14, 0x3b4261, 0x222638);
+        gridHelper.position.y = 0.005;
+        barGroup.add(gridHelper);
+
+        // Last 7 days data
+        const now = new Date();
+        const days = [];
+        let totalWeekMins = 0;
+
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(now);
+          d.setDate(now.getDate() - i);
+          const dateStr = getLocalDateStr(d);
+          const secs = dayTotals[dateStr] || 0;
+          const mins = Math.round(secs / 60);
+          totalWeekMins += mins;
+
+          const dayInitial = ['S', 'M', 'T', 'W', 'T', 'F', 'S'][d.getDay()];
+          const dayName = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+          days.push({
+            dateStr,
+            dayInitial,
+            dayName,
+            mins,
+          });
+        }
+
+        document.getElementById('bar-chart-total').textContent = `${formatDuration(totalWeekMins * 60)} total`;
+
+        // Determine bar scale: max height ~2.8 units
+        const maxMins = Math.max(60, ...days.map((d) => d.mins));
+        const spacing = 0.82;
+        const startX = -((days.length - 1) * spacing) / 2;
+
+        barMeshes.length = 0;
+
+        days.forEach((day, idx) => {
+          const barHeight = Math.max(0.08, (day.mins / maxMins) * 2.6);
+          const barGeo = new THREE.BoxGeometry(0.42, barHeight, 0.42);
+          // Shift geometry pivot to base
+          barGeo.translate(0, barHeight / 2, 0);
+
+          const barMat = new THREE.MeshStandardMaterial({
+            color: 0xa1b9ed,
+            emissive: 0x1f2b45,
+            roughness: 0.28,
+            metalness: 0.12,
+            transparent: true,
+            opacity: day.mins > 0 ? 0.95 : 0.4,
+          });
+
+          const barMesh = new THREE.Mesh(barGeo, barMat);
+          barMesh.position.set(startX + idx * spacing, 0.01, 0);
+          barMesh.userData = { ...day, originalColor: 0xa1b9ed, originalEmissive: 0x1f2b45 };
+          barGroup.add(barMesh);
+          barMeshes.push(barMesh);
+
+          // 3D Day Sprite Label
+          const canvas = document.createElement('canvas');
+          canvas.width = 64;
+          canvas.height = 64;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#ffffff';
+          ctx.font = '600 36px "IBM Plex Mono", monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(day.dayInitial, 32, 32);
+
+          const texture = new THREE.CanvasTexture(canvas);
+          const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true, opacity: 0.75 });
+          const sprite = new THREE.Sprite(spriteMat);
+          sprite.scale.set(0.36, 0.36, 1);
+          sprite.position.set(startX + idx * spacing, 0.02, 0.65);
+          barGroup.add(sprite);
+        });
+
+        // Raycasting for Bar Hover
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2(-999, -999);
+
+        container.onmouseenter = () => {
+          isBarHovered = true;
+        };
+
+        container.onmouseleave = () => {
+          isBarHovered = false;
+          if (hoveredBarMesh) {
+            hoveredBarMesh.material.color.setHex(hoveredBarMesh.userData.originalColor);
+            hoveredBarMesh.material.emissive.setHex(hoveredBarMesh.userData.originalEmissive);
+            hoveredBarMesh = null;
+          }
+          tooltip.style.opacity = '0';
+        };
+
+        container.onmousemove = (e) => {
+          const rect = container.getBoundingClientRect();
+          mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+          mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+          raycaster.setFromCamera(mouse, barCamera);
+          const intersects = raycaster.intersectObjects(barMeshes);
+
+          if (intersects.length > 0) {
+            const hit = intersects[0].object;
+            if (hoveredBarMesh !== hit) {
+              if (hoveredBarMesh) {
+                hoveredBarMesh.material.color.setHex(hoveredBarMesh.userData.originalColor);
+                hoveredBarMesh.material.emissive.setHex(hoveredBarMesh.userData.originalEmissive);
+              }
+              hoveredBarMesh = hit;
+              hoveredBarMesh.material.color.setHex(0xffffff);
+              hoveredBarMesh.material.emissive.setHex(0x3a4c70);
+            }
+
+            const data = hit.userData;
+            tooltip.textContent = `${data.dayName} · ${formatDuration(data.mins * 60)} (${data.mins}m)`;
+            tooltip.style.left = `${e.clientX - rect.left}px`;
+            tooltip.style.top = `${e.clientY - rect.top}px`;
+            tooltip.style.opacity = '1';
+          } else {
+            if (hoveredBarMesh) {
+              hoveredBarMesh.material.color.setHex(hoveredBarMesh.userData.originalColor);
+              hoveredBarMesh.material.emissive.setHex(hoveredBarMesh.userData.originalEmissive);
+              hoveredBarMesh = null;
+            }
+            tooltip.style.opacity = '0';
+          }
+        };
+
+        // Render loop
+        cancelAnimationFrame(barAnimationId);
+        function animate() {
+          barAnimationId = requestAnimationFrame(animate);
+          if (!isBarHovered) {
+            barGroup.rotation.y += 0.003;
+          }
+          barRenderer.render(barScene, barCamera);
+        }
+        animate();
+      }
+
+      // ==========================================
+      // 3. 3D ACTIVITY RINGS (THREE.JS)
+      // ==========================================
+      let ringsRenderer, ringsScene, ringsCamera, ringsAnimationId;
+      let ringsGroup;
+      let isRingsHovered = false;
+      let ringMouseX = 0;
+      let ringMouseY = 0;
+
+      function init3DActivityRings(todaySecs, weekSecs, dayTotals) {
+        const container = document.getElementById('rings-canvas-container');
+        container.innerHTML = '';
+
+        const width = container.clientWidth || 400;
+        const height = container.clientHeight || 280;
+
+        ringsScene = new THREE.Scene();
+
+        ringsCamera = new THREE.PerspectiveCamera(42, width / height, 0.1, 100);
+        ringsCamera.position.set(0, 0, 8.2);
+
+        ringsRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        ringsRenderer.setSize(width, height);
+        ringsRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        container.appendChild(ringsRenderer.domElement);
+
+        // Lighting
+        const amb = new THREE.AmbientLight(0xa1b9ed, 0.5);
+        ringsScene.add(amb);
+
+        const dir = new THREE.DirectionalLight(0xffffff, 1.4);
+        dir.position.set(5, 8, 8);
+        ringsScene.add(dir);
+
+        ringsGroup = new THREE.Group();
+        ringsScene.add(ringsGroup);
+
+        // Compute goals
+        // 1. Month consistency (30-day goal): active days in current month / 30
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth();
+        let monthActiveDays = 0;
+        Object.keys(dayTotals).forEach((dStr) => {
+          const parts = dStr.split('-');
+          if (parseInt(parts[0], 10) === currentYear && parseInt(parts[1], 10) === (currentMonth + 1)) {
+            if (dayTotals[dStr] > 0) monthActiveDays++;
+          }
+        });
+        const monthGoal = 30;
+        const monthRatio = Math.min(1, Math.max(0.01, monthActiveDays / monthGoal));
+
+        // 2. Weekly target (10 hours = 36000s)
+        const weekGoalSecs = 10 * 3600;
+        const weekRatio = Math.min(1, Math.max(0.01, weekSecs / weekGoalSecs));
+
+        // 3. Daily target (2 hours = 7200s)
+        const dayGoalSecs = 2 * 3600;
+        const dayRatio = Math.min(1, Math.max(0.01, todaySecs / dayGoalSecs));
+
+        // Update Legend Labels
+        document.getElementById('legend-val-month').textContent = `${monthActiveDays} / ${monthGoal}d (${Math.round((monthActiveDays / monthGoal) * 100)}%)`;
+        document.getElementById('legend-val-week').textContent = `${formatDuration(weekSecs)} / 10h (${Math.round(weekRatio * 100)}%)`;
+        document.getElementById('legend-val-day').textContent = `${formatDuration(todaySecs)} / 2h (${Math.round(dayRatio * 100)}%)`;
+
+        // Helper to create a torus ring with background track and progress arc
+        function createTorusRing(radius, tube, progress, colorHex, opacity, tiltX, tiltY) {
+          const subGroup = new THREE.Group();
+          subGroup.rotation.x = tiltX;
+          subGroup.rotation.y = tiltY;
+
+          // Track (Full Circle)
+          const trackGeo = new THREE.TorusGeometry(radius, tube, 20, 80, Math.PI * 2);
+          const trackMat = new THREE.MeshStandardMaterial({
+            color: 0x1f2333,
+            roughness: 0.6,
+            metalness: 0.1,
+            transparent: true,
+            opacity: 0.35,
+          });
+          const trackMesh = new THREE.Mesh(trackGeo, trackMat);
+          subGroup.add(trackMesh);
+
+          // Progress Arc
+          const arcGeo = new THREE.TorusGeometry(radius, tube * 1.05, 20, 80, Math.PI * 2 * progress);
+          const arcMat = new THREE.MeshStandardMaterial({
+            color: colorHex,
+            emissive: colorHex,
+            emissiveIntensity: 0.25,
+            roughness: 0.25,
+            metalness: 0.15,
+            transparent: true,
+            opacity: opacity,
+          });
+          const arcMesh = new THREE.Mesh(arcGeo, arcMat);
+          // Rotate to start arc at 12 o'clock
+          arcMesh.rotation.z = Math.PI / 2;
+          subGroup.add(arcMesh);
+
+          return subGroup;
+        }
+
+        // Outer: Month (2.9 radius, tilted 15 deg)
+        const outerRing = createTorusRing(2.9, 0.14, monthRatio, 0xa1b9ed, 0.45, THREE.MathUtils.degToRad(15), 0);
+        ringsGroup.add(outerRing);
+
+        // Middle: Week (2.1 radius, tilted 25 deg)
+        const middleRing = createTorusRing(2.1, 0.14, weekRatio, 0xa1b9ed, 0.72, THREE.MathUtils.degToRad(25), THREE.MathUtils.degToRad(10));
+        ringsGroup.add(middleRing);
+
+        // Inner: Day (1.3 radius, tilted 35 deg)
+        const innerRing = createTorusRing(1.3, 0.14, dayRatio, 0xa1b9ed, 1.0, THREE.MathUtils.degToRad(35), THREE.MathUtils.degToRad(-10));
+        ringsGroup.add(innerRing);
+
+        // Interaction
+        container.onmouseenter = () => {
+          isRingsHovered = true;
+        };
+        container.onmouseleave = () => {
+          isRingsHovered = false;
+        };
+        container.onmousemove = (e) => {
+          const rect = container.getBoundingClientRect();
+          ringMouseX = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+          ringMouseY = -((e.clientY - rect.top) / rect.height - 0.5) * 2;
+        };
+
+        cancelAnimationFrame(ringsAnimationId);
+        function animate() {
+          ringsAnimationId = requestAnimationFrame(animate);
+
+          if (!isRingsHovered) {
+            ringsGroup.rotation.y += 0.003;
+            ringsGroup.rotation.x = THREE.MathUtils.lerp(ringsGroup.rotation.x, 0, 0.05);
+          } else {
+            // Subtle tilt toward cursor
+            ringsGroup.rotation.y = THREE.MathUtils.lerp(ringsGroup.rotation.y, ringMouseX * 0.45, 0.06);
+            ringsGroup.rotation.x = THREE.MathUtils.lerp(ringsGroup.rotation.x, ringMouseY * 0.35, 0.06);
+          }
+
+          ringsRenderer.render(ringsScene, ringsCamera);
+        }
+        animate();
+      }
+
+      // Resize listener for 3D canvases
+      window.addEventListener('resize', () => {
+        const stats = computeStats();
+        init3DBarChart(stats.dayTotals);
+        init3DActivityRings(stats.todaySecs, stats.weekSecs, stats.dayTotals);
+      });
+
+      // ==========================================
+      // 4. SESSION LOG TABLE (INTERACTIVE)
+      // ==========================================
+      function renderSessionTable() {
+        const tbody = document.getElementById('session-table-body');
+        const badge = document.getElementById('table-count-badge');
+        const btnPrev = document.getElementById('btn-prev-page');
+        const btnNext = document.getElementById('btn-next-page');
+        const pageLabel = document.getElementById('pagination-label');
+
+        badge.textContent = `${sessions.length} session${sessions.length === 1 ? '' : 's'}`;
+
+        if (!sessions || sessions.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="6" class="empty-table-state">
+                No sessions yet. Start the timer to begin.
+              </td>
+            </tr>
+          `;
+          btnPrev.disabled = true;
+          btnNext.disabled = true;
+          pageLabel.textContent = '1 / 1';
+          return;
+        }
+
+        // Sort sessions
+        const sorted = [...sessions].sort((a, b) => {
+          let valA, valB;
+          if (sortColumn === 'date') {
+            valA = new Date(a.endedAt || a.startedAt).getTime();
+            valB = new Date(b.endedAt || b.startedAt).getTime();
+          } else if (sortColumn === 'duration') {
+            valA = Number(a.duration) || 0;
+            valB = Number(b.duration) || 0;
+          } else if (sortColumn === 'mode') {
+            valA = String(a.mode || '').toLowerCase();
+            valB = String(b.mode || '').toLowerCase();
+          } else if (sortColumn === 'subject') {
+            valA = String(a.subject || '').toLowerCase();
+            valB = String(b.subject || '').toLowerCase();
+          }
+          if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+          if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+          return 0;
+        });
+
+        // Pagination
+        const totalPages = Math.max(1, Math.ceil(sorted.length / rowsPerPage));
+        if (currentPage > totalPages) currentPage = totalPages;
+        const startIndex = (currentPage - 1) * rowsPerPage;
+        const pageItems = sorted.slice(startIndex, startIndex + rowsPerPage);
+
+        btnPrev.disabled = currentPage <= 1;
+        btnNext.disabled = currentPage >= totalPages;
+        pageLabel.textContent = `${currentPage} / ${totalPages}`;
+
+        // Render rows
+        tbody.innerHTML = '';
+        pageItems.forEach((session) => {
+          const tr = document.createElement('tr');
+          const isConfirming = confirmingDeleteId === session.id;
+
+          if (isConfirming) {
+            tr.className = 'row-confirming';
+            tr.innerHTML = `
+              <td colspan="6" class="confirm-inline-cell">
+                <div class="confirm-inline-box">
+                  <span>confirm delete?</span>
+                  <div class="confirm-actions">
+                    <button class="btn-inline-yes" data-id="${session.id}">yes</button>
+                    <button class="btn-inline-no" data-id="${session.id}">no</button>
+                  </div>
+                </div>
+              </td>
+            `;
+          } else {
+            const dateObj = new Date(session.endedAt || session.startedAt);
+            const dateFormatted = dateObj.toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+            const durationFormatted = formatDuration(session.duration || 0);
+            const modeText = session.mode ? session.mode.charAt(0).toUpperCase() + session.mode.slice(1) : 'Focus';
+            const subjectText = session.subject ? session.subject : '<span style="color: var(--text-dim);">&mdash;</span>';
+            const notesText = session.notes ? session.notes : '<span style="color: var(--text-dim);">&mdash;</span>';
+
+            tr.innerHTML = `
+              <td>${dateFormatted}</td>
+              <td style="font-weight: 500;">${durationFormatted}</td>
+              <td>${modeText}</td>
+              <td>${subjectText}</td>
+              <td style="max-width: 220px; overflow: hidden; text-overflow: ellipsis;">${notesText}</td>
+              <td style="text-align: right;">
+                <button class="btn-delete-row" data-id="${session.id}" title="Delete session">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </button>
+              </td>
+            `;
+          }
+          tbody.appendChild(tr);
+        });
+
+        // Event listeners for delete buttons
+        tbody.querySelectorAll('.btn-delete-row').forEach((btn) => {
+          btn.addEventListener('click', (e) => {
+            confirmingDeleteId = e.currentTarget.dataset.id;
+            renderSessionTable();
+          });
+        });
+
+        tbody.querySelectorAll('.btn-inline-yes').forEach((btn) => {
+          btn.addEventListener('click', (e) => {
+            const id = e.currentTarget.dataset.id;
+            deleteSession(id);
+            confirmingDeleteId = null;
+            loadFreshData();
+            const stats = computeStats();
+            init3DBarChart(stats.dayTotals);
+            init3DActivityRings(stats.todaySecs, stats.weekSecs, stats.dayTotals);
+            renderSessionTable();
+          });
+        });
+
+        tbody.querySelectorAll('.btn-inline-no').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            confirmingDeleteId = null;
+            renderSessionTable();
+          });
+        });
+      }
+
+      // Column Sorting
+      document.querySelectorAll('.session-table th[data-sort]').forEach((th) => {
+        th.addEventListener('click', () => {
+          const col = th.dataset.sort;
+          if (sortColumn === col) {
+            sortDirection = sortDirection === 'desc' ? 'asc' : 'desc';
+          } else {
+            sortColumn = col;
+            sortDirection = col === 'date' ? 'desc' : 'asc';
+          }
+
+          // Update arrows
+          ['date', 'duration', 'mode', 'subject'].forEach((c) => {
+            const arrowEl = document.getElementById(`sort-arrow-${c}`);
+            if (arrowEl) {
+              if (c === sortColumn) {
+                arrowEl.textContent = sortDirection === 'desc' ? '↓' : '↑';
+              } else {
+                arrowEl.textContent = '';
+              }
+            }
+          });
+
+          renderSessionTable();
+        });
+      });
+
+      // Pagination Click Handlers
+      const btnPrevPage = document.getElementById('btn-prev-page');
+      if (btnPrevPage) {
+        btnPrevPage.addEventListener('click', () => {
+          if (currentPage > 1) {
+            currentPage--;
+            renderSessionTable();
+          }
+        });
+      }
+
+      const btnNextPage = document.getElementById('btn-next-page');
+      if (btnNextPage) {
+        btnNextPage.addEventListener('click', () => {
+          const totalPages = Math.ceil(sessions.length / rowsPerPage);
+          if (currentPage < totalPages) {
+            currentPage++;
+            renderSessionTable();
+          }
+        });
+      }
+
+      // ==========================================
+      // INITIALIZATION
+      // ==========================================
+      loadFreshData();
+      const stats = computeStats();
+      init3DBarChart(stats.dayTotals);
+      init3DActivityRings(stats.todaySecs, stats.weekSecs, stats.dayTotals);
+      renderSessionTable();
+
+      // Check if URL has hash #session-log-table and scroll smoothly to it
+      if (window.location.hash === '#session-log-table') {
+        setTimeout(() => {
+          const el = document.getElementById('session-log-table');
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      }
+    </script>
+  </body>
+</html>
